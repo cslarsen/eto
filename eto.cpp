@@ -10,13 +10,18 @@ namespace eto {
 
 class cons {
 public:
-  class var* car;
-  class var* cdr;
+  const class var* car;
+  const class var* cdr;
 
-  cons(var* car_ = nullptr, var* cdr_ = nullptr) :
+  cons(const var& car_, const var& cdr_);
+  cons(const var& car_);
+
+  cons(const var* car_ = nullptr, const var* cdr_ = nullptr) :
     car(car_), cdr(cdr_)
   {
   }
+
+  friend std::ostream& operator<<(std::ostream& o, const cons& v);
 };
 
 class var {
@@ -70,7 +75,7 @@ public:
   {
   }
 
-  var(class cons& c) :
+  var(const class cons& c) :
     type(CONS), cons(c)
   {
   }
@@ -82,23 +87,39 @@ public:
         return o << v.integer;
       case STRING:
         return o << v.string;
-      case CONS: {
-        o << "(";
-        if ( v.cons.car )
-          o << v.cons.car;
-        else
-          o << "'()";
-        o << (v.cons.cdr? " " : " . ");
-        if ( v.cons.cdr )
-          o << v.cons.cdr;
-        else
-          o << "'()";
-        o << ")";
-        return o;
-      }
+      case CONS:
+        return o << v.cons;
     }
   }
 };
+
+cons::cons(const var& car_, const var& cdr_):
+  car(new var(car_)), cdr(new var(cdr_))
+{
+}
+
+cons::cons(const var& car_):
+  car(new var(car_)), cdr(nullptr)
+{
+}
+
+std::ostream& operator<<(std::ostream& o, const cons& v)
+{
+  const bool dot = v.cdr && v.cdr->type != var::CONS;
+
+  if ( v.car)
+    o << *v.car;
+
+  if ( dot )
+    o << " . ";
+  else if ( v.cdr )
+    o << " ";
+
+  if ( v.cdr )
+    o << *v.cdr;
+
+  return o;
+}
 
 } // namespace eto
 
@@ -106,6 +127,12 @@ int main(int, char**)
 {
   using namespace eto;
 
-  var n = "hello";
-  std::cout << n << std::endl;
+  std::cout << "(cons 1 2) ==> " << cons(1, 2) << std::endl;
+  std::cout << "(cons 1 (cons 2 '())) ==> " << cons(1, cons(2)) << std::endl;
+  std::cout << "(cons (cons 1 (cons 2 '()) 0) ==> " << cons(cons(1, cons(2)), 0) << std::endl;
+  std::cout << "(cons 1 (cons 2 3)) ==> " << cons(1, cons(2, 3)) << std::endl;
+  std::cout << "(cons 1 (cons 2 (cons 3 '()))) ==> " << cons(1, cons(2, cons(3))) << std::endl;
+  std::cout << "(cons (cons 1 (cons 2 '())) (cons 3 (cons 4 '()))) ==> "
+    << var(cons(cons(1, cons(2)),
+                cons(3, cons(4)))) << std::endl;
 }
