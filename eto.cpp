@@ -1,20 +1,56 @@
-#include <string.h>
 #include <iostream>
 #include <list>
+#include <typeindex>
 #include <unordered_map>
 #include <vector>
 
-#include <boost/variant.hpp>
-
 namespace eto {
+
+class garbage_collector {
+public:
+  typedef std::tuple<std::type_index, bool, void*> typed_ptr;
+  std::vector<typed_ptr> allocated;
+
+  template<typename X, typename... Args>
+  X* alloc(Args... args)
+  {
+    X* ptr = new X(args...);
+    allocated.push_back({typeid(X), false, ptr});
+    std::cout << "allocated " << ptr << std::endl;
+    return ptr;
+  }
+
+  virtual ~garbage_collector()
+  {
+    free();
+  }
+
+  void free()
+  {
+    for ( auto i : allocated ) {
+      std::cout << "free " << std::get<0>(i).name() << " " << std::get<1>(i) <<
+        " " << std::get<2>(i) << std::endl;
+      //delete(reinterpret_cast<i.first>(i.second));
+    }
+
+    /*
+    while ( !allocated.empty() ) {
+      typed_ptr v = allocated.pop_back();
+      delete(static_cast<v.first>(v.second)),
+    }
+    */
+  }
+};
+
+garbage_collector gc;
 
 class cons {
 public:
   const class var* car;
   const class var* cdr;
 
-  cons(const var& car_, const var& cdr_);
-  cons(const var& car_);
+  cons(const var&& car_, const var&& cdr_);
+  cons(const var&& car_);
 
   cons(const var* car_ = nullptr, const var* cdr_ = nullptr) :
     car(car_), cdr(cdr_)
@@ -93,13 +129,13 @@ public:
   }
 };
 
-cons::cons(const var& car_, const var& cdr_):
-  car(new var(car_)), cdr(new var(cdr_))
+cons::cons(const var&& car_, const var&& cdr_):
+  car(gc.alloc<var>(car_)), cdr(gc.alloc<var>(cdr_))
 {
 }
 
-cons::cons(const var& car_):
-  car(new var(car_)), cdr(nullptr)
+cons::cons(const var&& car_):
+  car(gc.alloc<var>(car_)), cdr(nullptr)
 {
 }
 
